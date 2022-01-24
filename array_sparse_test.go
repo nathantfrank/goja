@@ -19,7 +19,7 @@ func TestSparseArraySetLengthWithPropItems(t *testing.T) {
 	thrown && a.length === 3;
 	`
 
-	testScript1(SCRIPT, valueTrue, t)
+	testScript(SCRIPT, valueTrue, t)
 }
 
 func TestSparseArraySwitch(t *testing.T) {
@@ -139,7 +139,7 @@ func TestSparseArrayOwnKeys(t *testing.T) {
 	keys.length === 1 && keys[0] === "500000"; 
 	`
 
-	testScript1(SCRIPT, valueTrue, t)
+	testScript(SCRIPT, valueTrue, t)
 }
 
 func TestSparseArrayEnumerate(t *testing.T) {
@@ -160,7 +160,7 @@ func TestSparseArrayEnumerate(t *testing.T) {
 	seen && count === 1;
 	`
 
-	testScript1(SCRIPT, valueTrue, t)
+	testScript(SCRIPT, valueTrue, t)
 }
 
 func TestArraySparseMaxLength(t *testing.T) {
@@ -170,7 +170,7 @@ func TestArraySparseMaxLength(t *testing.T) {
 	a.length === 4294967295 && a[4294967294] === 1;
 	`
 
-	testScript1(SCRIPT, valueTrue, t)
+	testScript(SCRIPT, valueTrue, t)
 }
 
 func TestArraySparseExportProps(t *testing.T) {
@@ -228,5 +228,37 @@ func TestArraySparseExportProps(t *testing.T) {
 		}
 	} else {
 		t.Fatalf("Invalid export type: %T", actual)
+	}
+}
+
+func TestSparseArrayExportToSlice(t *testing.T) {
+	vm := New()
+	arr := vm.NewArray()
+	err := arr.Set("20470", 120470)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = arr.DefineDataProperty("20471", vm.ToValue(220471), FLAG_TRUE, FLAG_FALSE, FLAG_TRUE)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var exp []int
+	err = vm.ExportTo(arr, &exp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(exp) != 20472 {
+		t.Fatalf("len: %d", len(exp))
+	}
+	if e := exp[20470]; e != 120470 {
+		t.Fatalf("20470: %d", e)
+	}
+	if e := exp[20471]; e != 220471 {
+		t.Fatalf("20471: %d", e)
+	}
+	for i := 0; i < 20470; i++ {
+		if exp[i] != 0 {
+			t.Fatalf("at %d: %d", i, exp[i])
+		}
 	}
 }

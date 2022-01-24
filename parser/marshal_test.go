@@ -98,8 +98,9 @@ func testMarshalNode(node interface{}) interface{} {
 	case *ast.StringLiteral:
 		return marshal("Literal", node.Literal)
 
-	case *ast.VariableExpression:
-		return []interface{}{node.Name, testMarshalNode(node.Initializer)}
+	case *ast.Binding:
+		return marshal("Binding", "Target", testMarshalNode(node.Target),
+			"Initializer", testMarshalNode(node.Initializer))
 
 	// Statement
 
@@ -143,7 +144,7 @@ func testMarshalNode(node interface{}) interface{} {
 			"Name", node.Label.Name,
 			"Statement", testMarshalNode(node.Statement),
 		)
-	case ast.Property:
+	case *ast.PropertyKeyed:
 		return marshal("",
 			"Key", node.Key,
 			"Value", testMarshalNode(node.Value),
@@ -163,13 +164,11 @@ func testMarshalNode(node interface{}) interface{} {
 
 	// Special
 	case *ast.ForDeclaration:
-		return marshal("For-Into-Decl", testMarshalNode(node.Binding))
+		return marshal("For-Into-Decl", testMarshalNode(node.Target))
 
 	case *ast.ForIntoVar:
 		return marshal("For-Into-Var", testMarshalNode(node.Binding))
 
-	case *ast.BindingIdentifier:
-		return marshal("Binding-Identifier", "Id", node.Name)
 	}
 
 	{
@@ -715,32 +714,36 @@ func TestParserAST(t *testing.T) {
         })()
         ---
 [
-  {
-    "Var": [
-      [
-        "abc",
-        {
-          "Call": {
-            "ArgumentList": [],
-            "Callee": {
-              "Call": {
-                "ArgumentList": [
-                  {
-                    "Function": {
-                      "BlockStatement": []
-                    }
+   {
+      "Var": [
+         {
+            "Binding": {
+               "Initializer": {
+                  "Call": {
+                     "ArgumentList": [],
+                     "Callee": {
+                        "Call": {
+                           "ArgumentList": [
+                              {
+                                 "Function": {
+                                    "BlockStatement": []
+                                 }
+                              }
+                           ],
+                           "Callee": {
+                              "Literal": 1
+                           }
+                        }
+                     }
                   }
-                ],
-                "Callee": {
-                  "Literal": 1
-                }
-              }
+               },
+               "Target": {
+                  "Identifier": "abc"
+               }
             }
-          }
-        }
+         }
       ]
-    ]
-  }
+   }
 ]
         `)
 
@@ -819,22 +822,26 @@ func TestParserAST(t *testing.T) {
         }
         ---
 [
-  {
-    "ForIn": {
-      "Body": {
-        "BlockStatement": []
-      },
-      "Into": {
-		"For-Into-Var": [
-           "abc",
-           null
-        ]
-      },
-      "Source": {
-        "Identifier": "def"
-      }
-    }
-  }
+   {
+	  "ForIn": {
+		 "Body": {
+			"BlockStatement": []
+		 },
+		 "Into": {
+			"For-Into-Var": {
+			   "Binding": {
+				  "Initializer": null,
+				  "Target": {
+					 "Identifier": "abc"
+				  }
+			   }
+			}
+		 },
+		 "Source": {
+			"Identifier": "def"
+		 }
+	  }
+   }
 ]
         `)
 
@@ -879,77 +886,5 @@ func TestParserAST(t *testing.T) {
 ]
             `)
 
-		return
-
-		test(`
-        if (!abc && abc.jkl(def) && abc[0] === +abc[0] && abc.length < ghi) {
-        }
-        ---
-[
-  {
-    "If": {
-      "Consequent": {
-        "BlockStatement": []
-      },
-      "Test": {
-        "BinaryExpression": {
-          "Left": {
-            "BinaryExpression": {
-              "Left": {
-                "BinaryExpression": {
-                  "Left": null,
-                  "Operator": "\u0026\u0026",
-                  "Right": {
-                    "Call": {
-                      "ArgumentList": [
-                        {
-                          "Identifier": "def"
-                        }
-                      ],
-                      "Callee": {
-                        "Dot": {
-                          "Left": {
-                            "Identifier": "abc"
-                          },
-                          "Member": "jkl"
-                        }
-                      }
-                    }
-                  }
-                }
-              },
-              "Operator": "\u0026\u0026",
-              "Right": {
-                "BinaryExpression": {
-                  "Left": null,
-                  "Operator": "===",
-                  "Right": null
-                }
-              }
-            }
-          },
-          "Operator": "\u0026\u0026",
-          "Right": {
-            "BinaryExpression": {
-              "Left": {
-                "Dot": {
-                  "Left": {
-                    "Identifier": "abc"
-                  },
-                  "Member": "length"
-                }
-              },
-              "Operator": "\u003c",
-              "Right": {
-                "Identifier": "ghi"
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-]
-        `)
 	})
 }

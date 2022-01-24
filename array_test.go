@@ -28,6 +28,19 @@ func TestArrayExportProps(t *testing.T) {
 	}
 }
 
+func TestArrayCanonicalIndex(t *testing.T) {
+	const SCRIPT = `
+	var a = [];
+	a["00"] = 1;
+	a["01"] = 2;
+	if (a[0] !== undefined) {
+		throw new Error("a[0]");
+	}
+	`
+
+	testScript(SCRIPT, _undefined, t)
+}
+
 func BenchmarkArrayGetStr(b *testing.B) {
 	b.StopTimer()
 	r := New()
@@ -109,7 +122,7 @@ func BenchmarkArrayPut(b *testing.B) {
 
 func BenchmarkArraySetEmpty(b *testing.B) {
 	r := New()
-	r.Get("Array").(*Object).Get("prototype").String() // materialise Array.prototype
+	_ = r.Get("Array").(*Object).Get("prototype").String() // materialise Array.prototype
 	a := r.NewArray(0, 0)
 	values := a.self.(*arrayObject).values
 	b.ResetTimer()
