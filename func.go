@@ -57,7 +57,10 @@ func (f *nativeFuncObject) exportType() reflect.Type {
 
 func (f *funcObject) _addProto(n unistring.String) Value {
 	if n == "prototype" {
-		if _, exists := f.values[n]; !exists {
+		f.valuesMutex.RLock()
+		_, exists := f.values[n]
+		f.valuesMutex.RUnlock()
+		if !exists {
 			return f.addPrototype()
 		}
 	}
@@ -114,7 +117,10 @@ func (f *funcObject) hasOwnPropertyStr(name unistring.String) bool {
 
 func (f *funcObject) stringKeys(all bool, accum []Value) []Value {
 	if all {
-		if _, exists := f.values["prototype"]; !exists {
+		f.valuesMutex.RLock()
+		_, exists := f.values["prototype"]
+		f.valuesMutex.RUnlock()
+		if !exists {
 			accum = append(accum, asciiString("prototype"))
 		}
 	}
@@ -122,7 +128,10 @@ func (f *funcObject) stringKeys(all bool, accum []Value) []Value {
 }
 
 func (f *funcObject) iterateStringKeys() iterNextFunc {
-	if _, exists := f.values["prototype"]; !exists {
+	f.valuesMutex.RLock()
+	_, exists := f.values["prototype"]
+	f.valuesMutex.RUnlock()
+	if !exists {
 		f.addPrototype()
 	}
 	return f.baseFuncObject.iterateStringKeys()

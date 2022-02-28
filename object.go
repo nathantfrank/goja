@@ -5,6 +5,7 @@ import (
 	"math"
 	"reflect"
 	"sort"
+	"sync"
 
 	"github.com/dop251/goja/unistring"
 )
@@ -221,6 +222,8 @@ type baseObject struct {
 	lastSortedPropLen, idxPropCount int
 
 	symValues *orderedMap
+
+	valuesMutex sync.RWMutex
 }
 
 type guardedObject struct {
@@ -267,7 +270,9 @@ func (f ConstructorCall) Argument(idx int) Value {
 }
 
 func (o *baseObject) init() {
+	o.valuesMutex.Lock()
 	o.values = make(map[unistring.String]Value)
+	o.valuesMutex.Unlock()
 }
 
 func (o *baseObject) className() string {
@@ -339,7 +344,9 @@ func (o *baseObject) getSym(s *Symbol, receiver Value) Value {
 }
 
 func (o *baseObject) getStr(name unistring.String, receiver Value) Value {
+	o.valuesMutex.RLock()
 	prop := o.values[name]
+	o.valuesMutex.RUnlock()
 	if prop == nil {
 		if o.prototype != nil {
 			if receiver == nil {
@@ -369,7 +376,10 @@ func (o *baseObject) getOwnPropSym(s *Symbol) Value {
 }
 
 func (o *baseObject) getOwnPropStr(name unistring.String) Value {
-	return o.values[name]
+	o.valuesMutex.RLock()
+	val := o.values[name]
+	o.valuesMutex.RUnlock()
+	return val
 }
 
 func (o *baseObject) checkDeleteProp(name unistring.String, prop *valueProperty, throw bool) bool {
@@ -433,7 +443,11 @@ func (o *baseObject) deleteSym(s *Symbol, throw bool) bool {
 }
 
 func (o *baseObject) deleteStr(name unistring.String, throw bool) bool {
-	if val, exists := o.values[name]; exists {
+	o.valuesMutex.RLock()
+	val, exists := o.values[name]
+	o.valuesMutex.RUnlock()
+	if exists {
+		o.valuesMutex.RUnlock()
 		if !o.checkDelete(name, val, throw) {
 			return false
 		}
@@ -465,7 +479,9 @@ func (o *baseObject) setProto(proto *Object, throw bool) bool {
 }
 
 func (o *baseObject) setOwnStr(name unistring.String, val Value, throw bool) bool {
+	o.valuesMutex.RLock()
 	ownDesc := o.values[name]
+	o.valuesMutex.RUnlock()
 	if ownDesc == nil {
 		if proto := o.prototype; proto != nil {
 			// we know it's foreign because prototype loops are not allowed
@@ -478,7 +494,9 @@ func (o *baseObject) setOwnStr(name unistring.String, val Value, throw bool) boo
 			o.val.runtime.typeErrorResult(throw, "Cannot add property %s, object is not extensible", name)
 			return false
 		} else {
+			o.valuesMutex.Lock()
 			o.values[name] = val
+			o.valuesMutex.Unlock()
 			names := copyNamesIfNeeded(o.propNames, 1)
 			o.propNames = append(names, name)
 		}
@@ -492,7 +510,9 @@ func (o *baseObject) setOwnStr(name unistring.String, val Value, throw bool) boo
 			prop.set(o.val, val)
 		}
 	} else {
+		o.valuesMutex.Lock()
 		o.values[name] = val
+		o.valuesMutex.Unlock()
 	}
 	return true
 }
@@ -585,7 +605,10 @@ func (o *baseObject) _setForeignIdx(idx valueInt, prop, val, receiver Value, thr
 }
 
 func (o *baseObject) setForeignStr(name unistring.String, val, receiver Value, throw bool) (bool, bool) {
-	return o._setForeignStr(name, o.values[name], val, receiver, throw)
+	o.valuesMutex.RLock()
+	objectValue := o.values[name]
+	o.valuesMutex.RUnlock()
+	return o._setForeignStr(name, objectValue, val, receiver, throw)
 }
 
 func (o *baseObject) setForeignIdx(name valueInt, val, receiver Value, throw bool) (bool, bool) {
@@ -635,7 +658,9 @@ func (o *baseObject) hasOwnPropertySym(s *Symbol) bool {
 }
 
 func (o *baseObject) hasOwnPropertyStr(name unistring.String) bool {
+	o.valuesMutex.RLock()
 	_, exists := o.values[name]
+	o.valuesMutex.RUnlock()
 	return exists
 }
 
@@ -747,9 +772,13 @@ Reject:
 }
 
 func (o *baseObject) defineOwnPropertyStr(name unistring.String, descr PropertyDescriptor, throw bool) bool {
+	o.valuesMutex.RLock()
 	existingVal := o.values[name]
+	o.valuesMutex.RUnlock()
 	if v, ok := o._defineOwnProperty(name, existingVal, descr, throw); ok {
+		o.valuesMutex.Lock()
 		o.values[name] = v
+		o.valuesMutex.Unlock()
 		if existingVal == nil {
 			names := copyNamesIfNeeded(o.propNames, 1)
 			o.propNames = append(names, name)
@@ -779,12 +808,17 @@ func (o *baseObject) defineOwnPropertySym(s *Symbol, descr PropertyDescriptor, t
 }
 
 func (o *baseObject) _put(name unistring.String, v Value) {
-	if _, exists := o.values[name]; !exists {
+	o.valuesMutex.RLock()
+	_, exists := o.values[name]
+	o.valuesMutex.RUnlock()
+	if !exists {
 		names := copyNamesIfNeeded(o.propNames, 1)
 		o.propNames = append(names, name)
 	}
 
+	o.valuesMutex.Lock()
 	o.values[name] = v
+	o.valuesMutex.Unlock()
 }
 
 func valueProp(value Value, writable, enumerable, configurable bool) Value {
@@ -1172,7 +1206,9 @@ func (i *objectPropIter) next() (propIterItem, iterNextFunc) {
 	for i.idx < len(i.propNames) {
 		name := i.propNames[i.idx]
 		i.idx++
+		i.o.valuesMutex.RLock()
 		prop := i.o.values[name]
+		i.o.valuesMutex.RUnlock()
 		if prop != nil {
 			return propIterItem{name: stringValueFromRaw(name), value: prop}, i.next
 		}
@@ -1345,7 +1381,9 @@ func (o *baseObject) stringKeys(all bool, keys []Value) []Value {
 		}
 	} else {
 		for _, k := range o.propNames {
+			o.valuesMutex.RLock()
 			prop := o.values[k]
+			o.valuesMutex.RUnlock()
 			if prop, ok := prop.(*valueProperty); ok && !prop.enumerable {
 				continue
 			}

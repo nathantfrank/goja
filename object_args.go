@@ -17,7 +17,10 @@ func (a *argumentsObject) getStr(name unistring.String, receiver Value) Value {
 }
 
 func (a *argumentsObject) getOwnPropStr(name unistring.String) Value {
-	if mapped, ok := a.values[name].(*mappedProperty); ok {
+	a.valuesMutex.RLock()
+	mapped, ok := a.values[name].(*mappedProperty)
+	a.valuesMutex.RUnlock()
+	if ok {
 		if mapped.writable && mapped.enumerable && mapped.configurable {
 			return *mapped.v
 		}
@@ -38,7 +41,10 @@ func (a *argumentsObject) init() {
 }
 
 func (a *argumentsObject) setOwnStr(name unistring.String, val Value, throw bool) bool {
-	if prop, ok := a.values[name].(*mappedProperty); ok {
+	a.valuesMutex.RLock()
+	prop, ok := a.values[name].(*mappedProperty)
+	a.valuesMutex.RUnlock()
+	if ok {
 		if !prop.writable {
 			a.val.runtime.typeErrorResult(throw, "Property is not writable: %s", name)
 			return false
@@ -54,7 +60,10 @@ func (a *argumentsObject) setForeignStr(name unistring.String, val, receiver Val
 }
 
 func (a *argumentsObject) deleteStr(name unistring.String, throw bool) bool {
-	if prop, ok := a.values[name].(*mappedProperty); ok {
+	a.valuesMutex.RLock()
+	prop, ok := a.values[name].(*mappedProperty)
+	a.valuesMutex.RUnlock()
+	if ok {
 		if !a.checkDeleteProp(name, &prop.valueProperty, throw) {
 			return false
 		}
@@ -88,7 +97,10 @@ func (a *argumentsObject) iterateStringKeys() iterNextFunc {
 }
 
 func (a *argumentsObject) defineOwnPropertyStr(name unistring.String, descr PropertyDescriptor, throw bool) bool {
-	if mapped, ok := a.values[name].(*mappedProperty); ok {
+	a.valuesMutex.RLock()
+	mapped, ok := a.values[name].(*mappedProperty)
+	a.valuesMutex.RUnlock()
+	if ok {
 		existing := &valueProperty{
 			configurable: mapped.configurable,
 			writable:     true,
