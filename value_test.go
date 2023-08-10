@@ -295,31 +295,3 @@ func TestObjectMemUsage(t *testing.T) {
 		})
 	}
 }
-
-func TestObjectGoMapSimpleMemUsage(t *testing.T) {
-	vm := New()
-	key1 := "key1"
-	value1 := "4"
-	key2 := "key2"
-	value2 := "abcd"
-	origMap := map[string]interface{}{
-		key1: value1,
-		key2: value2,
-	}
-	expectedMem := uint64(len(key1)) + SizeString
-	expectedMem += uint64(len(value1)) + SizeString
-	expectedMem += uint64(len(key2)) + SizeString
-	expectedMem += uint64(len(value2)) + SizeString
-
-	value := vm.ToValue(origMap)
-	mem, _, err := value.MemUsage(
-		NewMemUsageContext(vm, 100, memUsageLimit, arrLenThreshold, objPropsLenThreshold, TestNativeMemUsageChecker{}),
-	)
-	if err != nil {
-		t.Fatalf("unexpected error %s", err.Error())
-	}
-
-	if mem != expectedMem {
-		t.Fatalf("actual value %d does not equal expected value %d", mem, expectedMem)
-	}
-}

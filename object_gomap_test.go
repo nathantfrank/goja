@@ -1,6 +1,8 @@
 package goja
 
-import "testing"
+import (
+	"testing"
+)
 
 func TestGomapProp(t *testing.T) {
 	const SCRIPT = `
@@ -324,5 +326,95 @@ func TestGoMapUnicode(t *testing.T) {
 	}
 	if res == nil || !res.StrictEquals(valueInt(42)) {
 		t.Fatalf("Unexpected value: %v", res)
+	}
+}
+
+func TestGoMapMemUsage(t *testing.T) {
+	vm := New()
+	tests := []struct {
+		name           string
+		val            *objectGoMapSimple
+		threshold      int
+		expectedMem    uint64
+		expectedNewMem uint64
+		errExpected    error
+	}{
+		{
+			name:      "should account for each key value pair given a non-empty object",
+			threshold: 100,
+			val: &objectGoMapSimple{
+				baseObject: baseObject{
+					val: &Object{runtime: vm},
+				},
+				data: map[string]interface{}{
+					"test0": valueInt(99),
+					"test1": valueInt(99),
+					"test2": valueInt(99),
+					"test3": valueInt(99),
+				},
+			},
+			// overhead + len("testN") + value
+			expectedMem: SizeEmptyStruct + (5+SizeInt)*4,
+			// overhead + len("testN") with string overhead + value
+			expectedNewMem: SizeEmptyStruct + ((5+SizeString)+SizeInt)*4,
+			errExpected:    nil,
+		},
+		{
+			name:      "should account for each key value pair given map with a nil value",
+			threshold: 100,
+			val: &objectGoMapSimple{
+				baseObject: baseObject{
+					val: &Object{runtime: vm},
+				},
+				data: map[string]interface{}{
+					"test": nil,
+				},
+			},
+			// overhead + len("test") + null
+			expectedMem: SizeEmptyStruct + 4 + SizeEmptyStruct,
+			// overhead + len("test") with string overhead + null
+			expectedNewMem: SizeEmptyStruct + (4 + SizeString) + SizeEmptyStruct,
+			errExpected:    nil,
+		},
+		{
+			name:      "should account for key value pair with value over threshold",
+			threshold: 20,
+			val: &objectGoMapSimple{
+				baseObject: baseObject{
+					val: &Object{runtime: vm},
+				},
+				data: map[string]interface{}{
+					"test": []interface{}{
+						valueInt(99),
+						valueInt(99),
+						valueInt(99),
+						valueInt(99),
+					},
+				},
+			},
+			// overhead + len("testN") + value
+			expectedMem: SizeEmptyStruct + 4 + SizeEmptyStruct, // <- why does this work?
+			// overhead + len("testN") with string overhead + value
+			expectedNewMem: SizeEmptyStruct + (4 + SizeString) + SizeEmptyStruct, // <- why does this not account for the inside the slice?
+			errExpected:    nil,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			total, newTotal, err := tc.val.MemUsage(NewMemUsageContext(vm, 100, 100, 100, tc.threshold, nil))
+			if err != tc.errExpected {
+				t.Fatalf("Unexpected error. Actual: %v Expected: %v", err, tc.errExpected)
+			}
+			if err != nil && tc.errExpected != nil && err.Error() != tc.errExpected.Error() {
+				t.Fatalf("Errors do not match. Actual: %v Expected: %v", err, tc.errExpected)
+			}
+			if total != tc.expectedMem {
+				t.Fatalf("Unexpected memory return. Actual: %v Expected: %v", total, tc.expectedMem)
+			}
+			if newTotal != tc.expectedNewMem {
+				t.Fatalf("Unexpected new memory return. Actual: %v Expected: %v", newTotal, tc.expectedNewMem)
+			}
+		})
 	}
 }
