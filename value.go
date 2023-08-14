@@ -1180,8 +1180,6 @@ func (o *Object) MemUsage(ctx *MemUsageContext) (memUsage uint64, newMemUsage ui
 		return SizeEmptyStruct, SizeEmptyStruct, nil
 	case *objectGoMapReflect:
 		return SizeEmptyStruct, SizeEmptyStruct, nil
-	case *objectGoSlice:
-		return SizeEmptyStruct, SizeEmptyStruct, nil
 	case *objectGoSliceReflect:
 		return SizeEmptyStruct, SizeEmptyStruct, nil
 	default:

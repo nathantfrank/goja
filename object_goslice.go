@@ -349,3 +349,19 @@ func (o *objectGoSlice) sortGet(i int) Value {
 func (o *objectGoSlice) swap(i int, j int) {
 	(*o.data)[i], (*o.data)[j] = (*o.data)[j], (*o.data)[i]
 }
+
+func (o *objectGoSlice) MemUsage(ctx *MemUsageContext) (uint64, uint64, error) {
+	mem, newMem, err := o.baseObject.MemUsage(ctx)
+	if err != nil {
+		return 0, 0, err
+	}
+	for _, datum := range *o.data {
+		memValue, newMemValue, err := o.val.runtime.ToValue(datum).MemUsage(ctx)
+		mem += memValue
+		newMem += newMemValue
+		if err != nil {
+			return mem, newMem, err
+		}
+	}
+	return mem, newMem, nil
+}

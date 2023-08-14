@@ -184,11 +184,11 @@ func (o *objectGoMapSimple) MemUsage(ctx *MemUsageContext) (uint64, uint64, erro
 		mem += uint64(len(key))
 		newMem += uint64(len(key)) + SizeString
 		memValue, newMemValue, err := o._getStr(key).MemUsage(ctx)
-		if err != nil {
-			return 0, 0, err
-		}
 		mem += memValue
 		newMem += newMemValue
+		if err != nil {
+			return mem, newMem, err
+		}
 	}
 	return mem, newMem, nil
 }

@@ -377,6 +377,55 @@ func TestGoMapMemUsage(t *testing.T) {
 			errExpected:    nil,
 		},
 		{
+			name:      "should account for nested parsed map",
+			threshold: 100,
+			val: &objectGoMapSimple{
+				baseObject: baseObject{
+					val: &Object{runtime: vm},
+				},
+				data: map[string]interface{}{
+					"test": &objectGoMapSimple{ // <- this is treated as a objectGoMapReflect
+						baseObject: baseObject{
+							val: &Object{runtime: vm},
+						},
+						data: map[string]interface{}{
+							"subTest1": valueInt(99),
+							"subTest2": valueInt(99),
+							"subTest3": valueInt(99),
+							"subTest4": valueInt(99),
+						},
+					},
+				},
+			},
+			// overhead + len("test") + reflectedMap
+			expectedMem: SizeEmptyStruct + 4 + SizeEmptyStruct,
+			// overhead + len("test") with string overhead + reflectedMap
+			expectedNewMem: SizeEmptyStruct + 4 + SizeString + SizeEmptyStruct,
+			errExpected:    nil,
+		},
+		{
+			name:      "should account for nested key value pairs",
+			threshold: 100,
+			val: &objectGoMapSimple{
+				baseObject: baseObject{
+					val: &Object{runtime: vm},
+				},
+				data: map[string]interface{}{
+					"test": map[string]interface{}{ // is this ever valid/should we test this situation?
+						"subTest1": valueInt(99),
+						"subTest2": valueInt(99),
+						"subTest3": valueInt(99),
+						"subTest4": valueInt(99),
+					},
+				},
+			},
+			// overhead + len("test") + VM runtime base object + values
+			expectedMem: SizeEmptyStruct + 4 + 2204 + ((8 + SizeInt) * 4),
+			// overhead + len("testN") with string overhead + VM runtime base object with overhead + values with string overhead
+			expectedNewMem: SizeEmptyStruct + (4 + SizeString) + 4716 + ((8 + SizeString + SizeInt) * 4),
+			errExpected:    nil,
+		},
+		{
 			name:      "should account for key value pair with value over threshold",
 			threshold: 20,
 			val: &objectGoMapSimple{
@@ -392,10 +441,10 @@ func TestGoMapMemUsage(t *testing.T) {
 					},
 				},
 			},
-			// overhead + len("testN") + value
-			expectedMem: SizeEmptyStruct + 4 + SizeEmptyStruct, // <- why does this work?
-			// overhead + len("testN") with string overhead + value
-			expectedNewMem: SizeEmptyStruct + (4 + SizeString) + SizeEmptyStruct, // <- why does this not account for the inside the slice?
+			// overhead + len("testN") + (value + len("length") + "length".value + prototype + ints)
+			expectedMem: SizeEmptyStruct + 4 + (SizeEmptyStruct + 6 + SizeEmptyStruct + (SizeEmptyStruct + SizeEmptyStruct) + SizeNumber*4),
+			// overhead + len("testN") with string overhead + (value + len("length") with string overhead + "length".value + prototype + ints)
+			expectedNewMem: SizeEmptyStruct + (4 + SizeString) + (SizeEmptyStruct + (6 + SizeString) + SizeEmptyStruct + (SizeEmptyStruct + SizeEmptyStruct) + SizeNumber*4),
 			errExpected:    nil,
 		},
 	}
