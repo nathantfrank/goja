@@ -1,9 +1,5 @@
 package goja
 
-import (
-	"fmt"
-)
-
 func (r *Runtime) builtin_Object(args []Value, newTarget *Object) *Object {
 	if newTarget != nil && newTarget != r.global.Object {
 		proto := r.getPrototypeFromCtor(newTarget, nil, r.global.ObjectPrototype)
@@ -491,7 +487,7 @@ func (r *Runtime) objectproto_toString(call FunctionCall) Value {
 				clsName = str.String()
 			}
 		}
-		return newStringValue(fmt.Sprintf("[object %s]", clsName))
+		return newStringValue("[object " + clsName + "]")
 	}
 }
 
