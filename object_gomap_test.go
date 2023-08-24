@@ -331,6 +331,23 @@ func TestGoMapUnicode(t *testing.T) {
 
 func TestGoMapMemUsage(t *testing.T) {
 	vm := New()
+	vmCtx := NewMemUsageContext(vm, 100, 100, 100, 100, nil)
+
+	nestedMap := map[string]interface{}{
+		"subTest1": valueInt(99),
+		"subTest2": valueInt(99),
+		"subTest3": valueInt(99),
+		"subTest4": valueInt(99),
+	}
+
+	// the baseObject is quite large when ToValue is called due to the functions on the object
+	// calculating ahead of time for test case
+	nestedMapAsObject := vm.ToValue(nestedMap)
+	nestedMapMemUsage, nestedMapNewMemUsage, err := nestedMapAsObject.MemUsage(vmCtx)
+	if err != nil {
+		t.Fatalf("Unexpected error. Actual: %v Expected: %v", err, nil)
+	}
+
 	tests := []struct {
 		name           string
 		val            *objectGoMapSimple
@@ -377,14 +394,14 @@ func TestGoMapMemUsage(t *testing.T) {
 			errExpected:    nil,
 		},
 		{
-			name:      "should account for nested parsed map",
+			name:      "should account for nested reflect object",
 			threshold: 100,
 			val: &objectGoMapSimple{
 				baseObject: baseObject{
 					val: &Object{runtime: vm},
 				},
 				data: map[string]interface{}{
-					"test": &objectGoMapSimple{ // <- this is treated as a objectGoMapReflect
+					"test": &objectGoMapSimple{
 						baseObject: baseObject{
 							val: &Object{runtime: vm},
 						},
@@ -397,9 +414,9 @@ func TestGoMapMemUsage(t *testing.T) {
 					},
 				},
 			},
-			// overhead + len("test") + reflectedMap
+			// overhead + len("test") + reflectObject
 			expectedMem: SizeEmptyStruct + 4 + SizeEmptyStruct,
-			// overhead + len("test") with string overhead + reflectedMap
+			// overhead + len("test") with string overhead + reflectObject
 			expectedNewMem: SizeEmptyStruct + 4 + SizeString + SizeEmptyStruct,
 			errExpected:    nil,
 		},
@@ -411,18 +428,13 @@ func TestGoMapMemUsage(t *testing.T) {
 					val: &Object{runtime: vm},
 				},
 				data: map[string]interface{}{
-					"test": map[string]interface{}{ // is this ever valid/should we test this situation?
-						"subTest1": valueInt(99),
-						"subTest2": valueInt(99),
-						"subTest3": valueInt(99),
-						"subTest4": valueInt(99),
-					},
+					"test": nestedMap,
 				},
 			},
 			// overhead + len("test") + VM runtime base object + values
-			expectedMem: SizeEmptyStruct + 4 + 2204 + ((8 + SizeInt) * 4),
+			expectedMem: SizeEmptyStruct + 4 + nestedMapMemUsage,
 			// overhead + len("testN") with string overhead + VM runtime base object with overhead + values with string overhead
-			expectedNewMem: SizeEmptyStruct + (4 + SizeString) + 4716 + ((8 + SizeString + SizeInt) * 4),
+			expectedNewMem: SizeEmptyStruct + (4 + SizeString) + nestedMapNewMemUsage,
 			errExpected:    nil,
 		},
 		{

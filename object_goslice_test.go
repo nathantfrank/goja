@@ -360,7 +360,7 @@ func TestGoSliceMemUsage(t *testing.T) {
 			errExpected:    nil,
 		},
 		{
-			name:      "should account for objectGoSlice", // treated as a objectGoSliceReflect
+			name:      "should account for reflect object",
 			threshold: 100,
 			val: &objectGoSlice{
 				baseObject: baseObject{
@@ -380,9 +380,9 @@ func TestGoSliceMemUsage(t *testing.T) {
 					},
 				},
 			},
-			// overhead + nested overhead
+			// overhead + nested reflect object
 			expectedMem: SizeEmptyStruct + SizeEmptyStruct,
-			// overhead + nested overhead
+			// overhead + nested reflect object
 			expectedNewMem: SizeEmptyStruct + SizeEmptyStruct,
 			errExpected:    nil,
 		},
