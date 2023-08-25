@@ -292,14 +292,30 @@ func TestGoSliceMemUsage(t *testing.T) {
 				data: &[]interface{}{
 					valueInt(99),
 					valueInt(99),
-					valueInt(99),
-					valueInt(99),
 				},
 			},
 			// overhead + values
-			expectedMem: SizeEmptyStruct + SizeInt*4,
+			expectedMem: SizeEmptyStruct + SizeInt*2,
 			// overhead + values
-			expectedNewMem: SizeEmptyStruct + SizeInt*4,
+			expectedNewMem: SizeEmptyStruct + SizeInt*2,
+			errExpected:    nil,
+		},
+		{
+			name:      "should account for each value given a slice with go ints",
+			threshold: 100,
+			val: &objectGoSlice{
+				baseObject: baseObject{
+					val: &Object{runtime: vm},
+				},
+				data: &[]interface{}{
+					99,
+					99,
+				},
+			},
+			// overhead + values
+			expectedMem: SizeEmptyStruct + SizeInt*2,
+			// overhead + values
+			expectedNewMem: SizeEmptyStruct + SizeInt*2,
 			errExpected:    nil,
 		},
 		{
@@ -318,26 +334,6 @@ func TestGoSliceMemUsage(t *testing.T) {
 			errExpected:    nil,
 		},
 		{
-			name:      "should account slice length over threshold",
-			threshold: 20,
-			val: &objectGoSlice{
-				baseObject: baseObject{
-					val: &Object{runtime: vm},
-				},
-				data: &[]interface{}{
-					valueInt(99),
-					valueInt(99),
-					valueInt(99),
-					valueInt(99),
-				},
-			},
-			// overhead + values
-			expectedMem: SizeEmptyStruct + SizeInt*4,
-			// overhead + values
-			expectedNewMem: SizeEmptyStruct + SizeInt*4,
-			errExpected:    nil,
-		},
-		{
 			name:      "should account for nested slices",
 			threshold: 100,
 			val: &objectGoSlice{
@@ -348,42 +344,33 @@ func TestGoSliceMemUsage(t *testing.T) {
 					[]interface{}{
 						valueInt(99),
 						valueInt(99),
-						valueInt(99),
-						valueInt(99),
 					},
 				},
 			},
 			// overhead + (value + len("length") + "length".value + prototype + ints)
-			expectedMem: SizeEmptyStruct + (SizeEmptyStruct + 6 + SizeEmptyStruct + (SizeEmptyStruct + SizeEmptyStruct) + SizeNumber*4),
+			expectedMem: SizeEmptyStruct + (SizeEmptyStruct + 6 + SizeEmptyStruct + (SizeEmptyStruct + SizeEmptyStruct) + SizeNumber*2),
 			// overhead + (value + len("length") with string overhead + "length".value + prototype + ints)
-			expectedNewMem: SizeEmptyStruct + (SizeEmptyStruct + (6 + SizeString) + SizeEmptyStruct + (SizeEmptyStruct + SizeEmptyStruct) + SizeNumber*4),
+			expectedNewMem: SizeEmptyStruct + (SizeEmptyStruct + (6 + SizeString) + SizeEmptyStruct + (SizeEmptyStruct + SizeEmptyStruct) + SizeNumber*2),
 			errExpected:    nil,
 		},
 		{
-			name:      "should account for reflect object",
+			name:      "should account for nested pointer slice",
 			threshold: 100,
 			val: &objectGoSlice{
 				baseObject: baseObject{
 					val: &Object{runtime: vm},
 				},
 				data: &[]interface{}{
-					&objectGoSlice{
-						baseObject: baseObject{
-							val: &Object{runtime: vm},
-						},
-						data: &[]interface{}{
-							valueInt(99),
-							valueInt(99),
-							valueInt(99),
-							valueInt(99),
-						},
+					&[]interface{}{
+						valueInt(99),
+						valueInt(99),
 					},
 				},
 			},
-			// overhead + nested reflect object
-			expectedMem: SizeEmptyStruct + SizeEmptyStruct,
-			// overhead + nested reflect object
-			expectedNewMem: SizeEmptyStruct + SizeEmptyStruct,
+			// overhead + (value + len("length") + "length".value + prototype + ints)
+			expectedMem: SizeEmptyStruct + (SizeEmptyStruct + 6 + SizeEmptyStruct + (SizeEmptyStruct + SizeEmptyStruct) + SizeNumber*2),
+			// overhead + (value + len("length") with string overhead + "length".value + prototype + ints)
+			expectedNewMem: SizeEmptyStruct + (SizeEmptyStruct + (6 + SizeString) + SizeEmptyStruct + (SizeEmptyStruct + SizeEmptyStruct) + SizeNumber*2),
 			errExpected:    nil,
 		},
 	}

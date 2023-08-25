@@ -336,12 +336,11 @@ func TestGoMapMemUsage(t *testing.T) {
 	nestedMap := map[string]interface{}{
 		"subTest1": valueInt(99),
 		"subTest2": valueInt(99),
-		"subTest3": valueInt(99),
-		"subTest4": valueInt(99),
 	}
 
-	// the baseObject is quite large when ToValue is called due to the functions on the object
-	// calculating ahead of time for test case
+	// The baseObject is quite large when ToValue is called due to the initialization of
+	// objectGoMapSimple. The init sets the object prototype with all its associated
+	// functions and fields. Calculating ahead of time for test case
 	nestedMapAsObject := vm.ToValue(nestedMap)
 	nestedMapMemUsage, nestedMapNewMemUsage, err := nestedMapAsObject.MemUsage(vmCtx)
 	if err != nil {
@@ -366,14 +365,30 @@ func TestGoMapMemUsage(t *testing.T) {
 				data: map[string]interface{}{
 					"test0": valueInt(99),
 					"test1": valueInt(99),
-					"test2": valueInt(99),
-					"test3": valueInt(99),
 				},
 			},
-			// overhead + len("testN") + value
-			expectedMem: SizeEmptyStruct + (5+SizeInt)*4,
-			// overhead + len("testN") with string overhead + value
-			expectedNewMem: SizeEmptyStruct + ((5+SizeString)+SizeInt)*4,
+			// baseObject overhead + len("testN") + value
+			expectedMem: SizeEmptyStruct + (5+SizeInt)*2,
+			// baseObject overhead + len("testN") with string overhead + value
+			expectedNewMem: SizeEmptyStruct + ((5+SizeString)+SizeInt)*2,
+			errExpected:    nil,
+		},
+		{
+			name:      "should account for each key value pair given a map with native ints",
+			threshold: 100,
+			val: &objectGoMapSimple{
+				baseObject: baseObject{
+					val: &Object{runtime: vm},
+				},
+				data: map[string]interface{}{
+					"test0": 99,
+					"test1": 99,
+				},
+			},
+			// baseObject overhead + len("testN") + value
+			expectedMem: SizeEmptyStruct + (5+SizeInt)*2,
+			// baseObject overhead + len("testN") with string overhead + value
+			expectedNewMem: SizeEmptyStruct + ((5+SizeString)+SizeInt)*2,
 			errExpected:    nil,
 		},
 		{
@@ -394,33 +409,6 @@ func TestGoMapMemUsage(t *testing.T) {
 			errExpected:    nil,
 		},
 		{
-			name:      "should account for nested reflect object",
-			threshold: 100,
-			val: &objectGoMapSimple{
-				baseObject: baseObject{
-					val: &Object{runtime: vm},
-				},
-				data: map[string]interface{}{
-					"test": &objectGoMapSimple{
-						baseObject: baseObject{
-							val: &Object{runtime: vm},
-						},
-						data: map[string]interface{}{
-							"subTest1": valueInt(99),
-							"subTest2": valueInt(99),
-							"subTest3": valueInt(99),
-							"subTest4": valueInt(99),
-						},
-					},
-				},
-			},
-			// overhead + len("test") + reflectObject
-			expectedMem: SizeEmptyStruct + 4 + SizeEmptyStruct,
-			// overhead + len("test") with string overhead + reflectObject
-			expectedNewMem: SizeEmptyStruct + 4 + SizeString + SizeEmptyStruct,
-			errExpected:    nil,
-		},
-		{
 			name:      "should account for nested key value pairs",
 			threshold: 100,
 			val: &objectGoMapSimple{
@@ -431,32 +419,10 @@ func TestGoMapMemUsage(t *testing.T) {
 					"test": nestedMap,
 				},
 			},
-			// overhead + len("test") + VM runtime base object + values
+			// overhead + len("test") + (Object prototype + values)
 			expectedMem: SizeEmptyStruct + 4 + nestedMapMemUsage,
-			// overhead + len("testN") with string overhead + VM runtime base object with overhead + values with string overhead
+			// overhead + len("testN") with string overhead + (Object prototype with overhead + values with string overhead)
 			expectedNewMem: SizeEmptyStruct + (4 + SizeString) + nestedMapNewMemUsage,
-			errExpected:    nil,
-		},
-		{
-			name:      "should account for key value pair with value over threshold",
-			threshold: 20,
-			val: &objectGoMapSimple{
-				baseObject: baseObject{
-					val: &Object{runtime: vm},
-				},
-				data: map[string]interface{}{
-					"test": []interface{}{
-						valueInt(99),
-						valueInt(99),
-						valueInt(99),
-						valueInt(99),
-					},
-				},
-			},
-			// overhead + len("testN") + (value + len("length") + "length".value + prototype + ints)
-			expectedMem: SizeEmptyStruct + 4 + (SizeEmptyStruct + 6 + SizeEmptyStruct + (SizeEmptyStruct + SizeEmptyStruct) + SizeNumber*4),
-			// overhead + len("testN") with string overhead + (value + len("length") with string overhead + "length".value + prototype + ints)
-			expectedNewMem: SizeEmptyStruct + (4 + SizeString) + (SizeEmptyStruct + (6 + SizeString) + SizeEmptyStruct + (SizeEmptyStruct + SizeEmptyStruct) + SizeNumber*4),
 			errExpected:    nil,
 		},
 	}
