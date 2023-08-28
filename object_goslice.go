@@ -355,6 +355,9 @@ func (o *objectGoSlice) MemUsage(ctx *MemUsageContext) (uint64, uint64, error) {
 	if err != nil {
 		return 0, 0, err
 	}
+	if o.data == nil {
+		return mem, newMem, nil
+	}
 	for _, datum := range *o.data {
 		memValue, newMemValue, err := o.val.runtime.ToValue(datum).MemUsage(ctx)
 		mem += memValue
