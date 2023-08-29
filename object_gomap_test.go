@@ -350,14 +350,12 @@ func TestGoMapMemUsage(t *testing.T) {
 	tests := []struct {
 		name           string
 		val            *objectGoMapSimple
-		threshold      int
 		expectedMem    uint64
 		expectedNewMem uint64
 		errExpected    error
 	}{
 		{
-			name:      "should account for each key value pair given a non-empty object",
-			threshold: 100,
+			name: "should account for each key value pair given a non-empty object",
 			val: &objectGoMapSimple{
 				baseObject: baseObject{
 					val: &Object{runtime: vm},
@@ -374,8 +372,7 @@ func TestGoMapMemUsage(t *testing.T) {
 			errExpected:    nil,
 		},
 		{
-			name:      "should account for each key value pair given a map with native ints",
-			threshold: 100,
+			name: "should account for each key value pair given a map with native ints",
 			val: &objectGoMapSimple{
 				baseObject: baseObject{
 					val: &Object{runtime: vm},
@@ -392,8 +389,7 @@ func TestGoMapMemUsage(t *testing.T) {
 			errExpected:    nil,
 		},
 		{
-			name:      "should account for each key value pair given map with a nil value",
-			threshold: 100,
+			name: "should account for each key value pair given map with a nil value",
 			val: &objectGoMapSimple{
 				baseObject: baseObject{
 					val: &Object{runtime: vm},
@@ -409,8 +405,7 @@ func TestGoMapMemUsage(t *testing.T) {
 			errExpected:    nil,
 		},
 		{
-			name:      "should account for nested key value pairs",
-			threshold: 100,
+			name: "should account for nested key value pairs",
 			val: &objectGoMapSimple{
 				baseObject: baseObject{
 					val: &Object{runtime: vm},
@@ -425,11 +420,27 @@ func TestGoMapMemUsage(t *testing.T) {
 			expectedNewMem: SizeEmptyStruct + (4 + SizeString) + nestedMapNewMemUsage,
 			errExpected:    nil,
 		},
+		{
+			name: "should account for nested pointer of key value pairs",
+			val: &objectGoMapSimple{
+				baseObject: baseObject{
+					val: &Object{runtime: vm},
+				},
+				data: map[string]interface{}{
+					"test": &nestedMap,
+				},
+			},
+			// overhead + len("test") + nested overhead
+			expectedMem: SizeEmptyStruct + 4 + SizeEmptyStruct,
+			// overhead + len("testN") with string overhead + nested overhead
+			expectedNewMem: SizeEmptyStruct + (4 + SizeString) + SizeEmptyStruct,
+			errExpected:    nil,
+		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			total, newTotal, err := tc.val.MemUsage(NewMemUsageContext(vm, 100, 100, 100, tc.threshold, nil))
+			total, newTotal, err := tc.val.MemUsage(NewMemUsageContext(vm, 100, 100, 100, 100, nil))
 			if err != tc.errExpected {
 				t.Fatalf("Unexpected error. Actual: %v Expected: %v", err, tc.errExpected)
 			}

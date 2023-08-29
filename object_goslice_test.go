@@ -277,14 +277,12 @@ func TestGoSliceMemUsage(t *testing.T) {
 	tests := []struct {
 		name           string
 		val            *objectGoSlice
-		threshold      int
 		expectedMem    uint64
 		expectedNewMem uint64
 		errExpected    error
 	}{
 		{
-			name:      "should account for each value given a non-empty slice",
-			threshold: 100,
+			name: "should account for each value given a non-empty slice",
 			val: &objectGoSlice{
 				baseObject: baseObject{
 					val: &Object{runtime: vm},
@@ -301,8 +299,7 @@ func TestGoSliceMemUsage(t *testing.T) {
 			errExpected:    nil,
 		},
 		{
-			name:      "should account for each value given a slice with go ints",
-			threshold: 100,
+			name: "should account for each value given a slice with go ints",
 			val: &objectGoSlice{
 				baseObject: baseObject{
 					val: &Object{runtime: vm},
@@ -319,8 +316,7 @@ func TestGoSliceMemUsage(t *testing.T) {
 			errExpected:    nil,
 		},
 		{
-			name:      "should account for each value given slice with a nil value",
-			threshold: 100,
+			name: "should account for each value given slice with a nil value",
 			val: &objectGoSlice{
 				baseObject: baseObject{
 					val: &Object{runtime: vm},
@@ -334,8 +330,7 @@ func TestGoSliceMemUsage(t *testing.T) {
 			errExpected:    nil,
 		},
 		{
-			name:      "should account for nested slices",
-			threshold: 100,
+			name: "should account for nested slices",
 			val: &objectGoSlice{
 				baseObject: baseObject{
 					val: &Object{runtime: vm},
@@ -354,8 +349,7 @@ func TestGoSliceMemUsage(t *testing.T) {
 			errExpected:    nil,
 		},
 		{
-			name:      "should account for nested pointer slice",
-			threshold: 100,
+			name: "should account for nested pointer slice",
 			val: &objectGoSlice{
 				baseObject: baseObject{
 					val: &Object{runtime: vm},
@@ -377,7 +371,7 @@ func TestGoSliceMemUsage(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			total, newTotal, err := tc.val.MemUsage(NewMemUsageContext(vm, 100, 100, 100, tc.threshold, nil))
+			total, newTotal, err := tc.val.MemUsage(NewMemUsageContext(vm, 100, 100, 100, 100, nil))
 			if err != tc.errExpected {
 				t.Fatalf("Unexpected error. Actual: %v Expected: %v", err, tc.errExpected)
 			}
